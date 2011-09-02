@@ -1,0 +1,212 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <title>three.js webgl - materials - normal map [Lee Perry-Smith]</title>
+        <meta charset="utf-8">
+        <style type="text/css">
+            body {
+                background:#fff;
+                color:#fff;
+                padding:0;
+                margin:0;
+                font-weight: bold;
+                overflow:hidden;
+            }
+
+            a { color: #ffffff; }
+
+            #info {
+                position: absolute;
+                top: 0px; width: 100%;
+                color: #ffffff;
+                padding: 5px;
+                font-family:Monospace;
+                font-size:13px;
+                text-align:center;
+                z-index:1000;
+            }
+
+            #oldie {
+                background:rgb(200,100,0) !important;
+                color:#fff;
+            }
+
+            #vt { display:none }
+            #vt, #vt a { color:orange; }
+            .code { }
+
+            #log { position:absolute; top:50px; text-align:left; display:block; z-index:100 }
+        </style>
+    </head>
+
+    <body>
+        <div id="zz" style="display:none; top:400px; left:400px; background:#F00; position:absolute;">dfdsfdssdffgdfkligdlsfghfdkjsglfdkjghlsdfjghdsfgsdfkljgdfkgjd
+        </div>
+        <div id="cont">
+        </div>
+        <pre id="log"></pre>
+
+        <div id="info">
+            <a href="http://github.com/mrdoob/three.js" target="_blank">three.js</a> - webgl normalmap demo.
+            <a href="http://www.ir-ltd.net/infinite-3d-head-scan-released/" target="_blank">Lee Perry-Smith</a> head.
+
+            <div id="vt">displacement mapping needs vertex textures (GPU with Shader Model 3.0)<br/>
+            on Windows use <span class="code">Chrome --use-gl=desktop</span> or Firefox 4<br/>
+            please star this <a href="http://code.google.com/p/chromium/issues/detail?id=52497">Chrome issue</a> to get ANGLE support
+            
+        </div>
+
+        
+        <script type="text/javascript" src="js/Three.js"></script>
+
+        <script type="text/javascript" src="js/Detector.js"></script>
+        <script type="text/javascript" src="js/RequestAnimationFrame.js"></script>
+        <script type="text/javascript" src="js/ShaderZ.js"></script>
+        <script type="text/javascript" src="js/Stats.js"></script>
+
+        <script type="text/javascript">
+
+            if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+            var statsEnabled = true;
+
+            var container, stats, loader;
+
+            var camera, scene, renderer,video,texturex;
+            var currentlyPressedKeys=new Array();
+            var mesh,mesh1, zmesh, lightMesh, geometry;
+            var meshx=new Array();
+
+            var directionalLight, pointLight, ambientLight;
+            var height = window.innerHeight - 300;
+
+            var mouseX = 0;
+            var mouseY = 0;
+            var vx,vy,lastx,lasty;
+            var postprocessing = { enabled  : true };
+            var windowHalfX = window.innerWidth / 2;
+            var windowHalfY = window.innerHeight / 2;
+            var ax=0,ay=0,angx=0;angy=0;
+            var materials = [];
+            
+            init();
+            animate();
+
+            function init() {
+            
+                vx=vy=lastx=lasty=0;
+                
+                container = document.getElementById('cont');
+                document.body.appendChild(container);
+
+                camerax = new THREE.QuakeCamera( {
+                    fov: 60, aspect: window.innerWidth / window.innerHeight, near: 1, far: 20000,
+                    movementSpeed: 100, lookSpeed: 0.04, noFly: false, lookVertical: true
+                } );
+
+                scene = new THREE.Scene();
+
+                // LIGHTS
+                ambientLight = new THREE.AmbientLight( 0x999999 );
+                scene.addLight( ambientLight );
+                pointLight = new THREE.PointLight( 0xFFFFFF,0.000001 );
+                pointLight.position.z = 700;pointLight.position.x = 150;pointLight.position.y = 1000;
+                scene.addLight( pointLight );
+
+                loader = new THREE.JSONLoader( true );
+                document.body.appendChild( loader.statusDomElement );
+                /**********************************************************************/
+                var t1 = THREE.ImageUtils.loadTexture( "img/windows.jpg"  );
+                t1.wrapS = THREE.RepeatWrapping;
+                t1.wrapT = THREE.RepeatWrapping;                
+                var material0 = new THREE.MeshPhongMaterial( { color: 0xFFEEBB , ambient:0xFFEEBB , map:t1 , shading:THREE.FlatShading } ); 
+                loader.load( { model: "models/city.js", callback:  function( geometry ) { createScene( geometry, 100,0, material0,scene ) } });
+                                
+                /************************************************************************/
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize( window.innerWidth, window.innerHeight );
+                container.appendChild( renderer.domElement );
+            
+                scene.matrixAutoUpdate = false;
+                
+                initPostprocessing();
+                if ( statsEnabled ) {
+                    stats = new Stats();
+                    stats.domElement.style.position = 'absolute';
+                    stats.domElement.style.top = '0px';
+                    stats.domElement.style.zIndex = 100;
+                    container.appendChild( stats.domElement );
+                }
+                document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+                document.onkeydown = handleKeyDown;
+                document.onkeyup = handleKeyUp;
+                
+            }
+             function handleKeyDown(event) {
+                currentlyPressedKeys[event.keyCode] = true;
+
+                if (String.fromCharCode(event.keyCode) == "F") {
+                    camera.position.z -= Math.cos(camera.rotation.y)*10;    
+                    camera.position.x -= Math.sin(camera.rotation.y)*10;
+                    camera.position.y += Math.sin(camera.rotation.x)*10;                 
+                }
+                if (String.fromCharCode(event.keyCode) == "Z") {
+                    alert(ax);
+                }
+              }
+
+              function handleKeyUp(event) {
+                currentlyPressedKeys[event.keyCode] = false;
+              }
+            function createScene( geometry, scale,t, material,scena ) {
+                //geometry.computeTangents();
+                meshx[t]= THREE.SceneUtils.addMesh( scena, geometry, scale, 0, - 1000, 0, 0, 0, 0, material );              
+                loader.statusDomElement.style.display = "none";
+            }           
+            function onDocumentMouseDown( event ) { 
+                event.preventDefault(); 
+                document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+                document.addEventListener( 'mouseup', onDocumentMouseUp, false );
+                document.addEventListener( 'mouseout', onDocumentMouseOut, false ); 
+                lastx = event.clientX;
+                lasty = event.clientY;  
+            }
+            function onDocumentMouseMove( event ) { 
+                angx += event.clientX - lastx; 
+                angy += event.clientY - lasty; 
+                lastx = event.clientX;
+                lasty = event.clientY;  
+                targetRotation = targetRotationOnMouseDown + ( mouseX - mouseXOnMouseDown ) * 0.02;
+            } 
+            function onDocumentMouseUp( event ) { 
+                document.removeEventListener( 'mousemove', onDocumentMouseMove, false );
+                document.removeEventListener( 'mouseup', onDocumentMouseUp, false );
+                document.removeEventListener( 'mouseout', onDocumentMouseOut, false );
+            } 
+            function onDocumentMouseOut( event ) { 
+                document.removeEventListener( 'mousemove', onDocumentMouseMove, false );
+                document.removeEventListener( 'mouseup', onDocumentMouseUp, false );
+                document.removeEventListener( 'mouseout', onDocumentMouseOut, false );
+            }
+ 
+            function animate() {
+                requestAnimationFrame( animate );
+                
+                render();
+                if ( statsEnabled ) stats.update();
+            }
+
+            function log( text ) {
+                var e = document.getElementById("log");
+                e.innerHTML = text + "<br/>" + e.innerHTML;
+            }           
+            function initPostprocessing() {
+            
+            }
+            function render() {
+                renderer.render( scene, camerax);
+                
+            }
+        </script>
+
+    </body>
+</html>
